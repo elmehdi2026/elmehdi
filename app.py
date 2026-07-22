@@ -5,7 +5,6 @@ from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
-# Importations spécifiques aux modèles
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
@@ -15,10 +14,8 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticD
 from sklearn.manifold import TSNE
 import umap
 
-# Configuration globale de la page
 st.set_page_config(page_title="Rapports de TP - Master IAENG", page_icon="🎓", layout="wide")
 
-# Menu de navigation dans la barre latérale
 st.sidebar.title("🧭 Navigation des TPs")
 choix_tp = st.sidebar.selectbox(
     "Choisir un TP à afficher :",
@@ -44,7 +41,7 @@ st.sidebar.info("🎓 **EL MEHDI - Master IAENG**\n\nPlateforme mutualisée de d
 if choix_tp == "1. TP-Decision Tree":
     st.header("EL MEHDI - IAENG")
     st.title("🌳 TP-Decision Tree : Détection du Chiffre 0")
-    st.write("Classification binaire avec le Dataset MNIST (0 vs Autres chiffres)")[cite: 10]
+    st.write("Classification binaire avec le Dataset MNIST (0 vs Autres chiffres)")
 
     @st.cache_data
     def load_data_tree():
@@ -90,7 +87,7 @@ if choix_tp == "1. TP-Decision Tree":
 elif choix_tp == "2. TP-KNN":
     st.header("EL MEHDI - IAENG")
     st.title("👥 TP-KNN : Détection du Chiffre 0")
-    st.write("Classification binaire avec le Dataset MNIST (0 vs Autres chiffres)")[cite: 11]
+    st.write("Classification binaire avec le Dataset MNIST (0 vs Autres chiffres)")
 
     @st.cache_data
     def load_data_knn():
@@ -138,7 +135,7 @@ elif choix_tp == "2. TP-KNN":
 elif choix_tp == "3. TP-LDA":
     st.header("EL MEHDI - IAENG")
     st.title("TP LDA : Projection 1D (Version MNIST 28x28)")
-    st.write("Chargement du vrai dataset MNIST et calcul de la projection 1D *From Scratch*.")[cite: 12]
+    st.write("Chargement du vrai dataset MNIST et calcul de la projection 1D From Scratch.")
 
     @st.cache_data
     def load_mnist_784():
@@ -178,7 +175,7 @@ elif choix_tp == "3. TP-LDA":
 # =========================================================================
 elif choix_tp == "4. TP-PCA":
     st.title("TP PCA : Compression, Reconstruction & Débruitage sur MNIST")
-    st.subheader("EL MEHDI - Master IAENG")[cite: 14]
+    st.subheader("EL MEHDI - Master IAENG")
 
     @st.cache_data
     def load_mnist_pca():
@@ -248,7 +245,7 @@ elif choix_tp == "4. TP-PCA":
 # =========================================================================
 elif choix_tp == "5. TP-QDA":
     st.title("TP QDA : Frontières Quadratiques & Hétérogénéité des Classes")
-    st.subheader("EL MEHDI - Master IAENG")[cite: 15]
+    st.subheader("EL MEHDI - Master IAENG")
 
     @st.cache_data
     def load_mnist_qda():
@@ -327,7 +324,7 @@ elif choix_tp == "5. TP-QDA":
 elif choix_tp == "6. TP-Régression Logistique":
     st.header("EL MEHDI - IAENG")
     st.title("📈 TP-Régression Logistique : Détection du Chiffre 0")
-    st.write("Classification binaire avec le Dataset MNIST (0 vs Autres chiffres)")[cite: 13]
+    st.write("Classification binaire avec le Dataset MNIST (0 vs Autres chiffres)")
 
     @st.cache_data
     def load_data_log():
@@ -373,7 +370,7 @@ elif choix_tp == "6. TP-Régression Logistique":
 # =========================================================================
 elif choix_tp == "7. TP-SVM (One-Class)":
     st.header("EL MEHDI - IAENG")
-    st.title("Détecteur de '0' (One-Class SVM)")[cite: 16]
+    st.title("Détecteur de '0' (One-Class SVM)")
 
     @st.cache_data
     def load_data_svm():
