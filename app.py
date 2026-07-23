@@ -1,89 +1,141 @@
 import streamlit as st
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.datasets import fetch_openml
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+import seaborn as sns
 
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import OneClassSVM
-from sklearn.decomposition import PCA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
-from sklearn.manifold import TSNE
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.metrics import (
+    classification_report, confusion_matrix, 
+    precision_score, recall_score, accuracy_score, f1_score, roc_auc_score
+)
 import umap
 
-st.set_page_config(page_title="Master IAENG - EL MEHDI", layout="wide")
+st.set_page_config(page_title="Windows Sentinel - UMAP Workflow", page_icon="🛡️", layout="wide")
 
-st.sidebar.title("Navigation")
-choix = st.sidebar.selectbox("Choisir le modèle :", [
-    "1. Decision Tree", "2. KNN", "3. LDA", "4. PCA", 
-    "5. QDA", "6. Régression Logistique", "7. SVM (One-Class)", "8. t-SNE", "9. UMAP"
-])
+st.title("🛡️ Windows Sentinel : Détection d'Anomalies avec UMAP")
+st.markdown("Workflow complet de Machine Learning appliqué aux logs de sécurité Windows.")
+st.markdown("---")
+
+# ==========================================
+# 1. DATA CLEAN, OUTLIERS & AUGMENTATION/EQUILIBRAGE
+# ==========================================
+st.header("1. Data Cleaning, Outliers & Équilibrage")
 
 @st.cache_data
 def load_data():
-    mnist = fetch_openml('mnist_784', version=1, as_frame=False, parser='auto')
-    return mnist.data[:2000] / 255.0, mnist.target[:2000].astype(int)
+    # Chargement d'un Dataset réel en ligne sur GitHub
+    url = "https://raw.githubusercontent.com/whit3rabbit/Windows-Event-Codes-CSV/main/updated_detailed_events.csv"
+    df_raw = pd.read_csv(url)
+    return df_raw
 
-X, y = load_data()
+with st.spinner("Téléchargement du Dataset en ligne..."):
+    df_raw = load_data()
 
-if choix == "1. Decision Tree":
-    st.title("🌳 Decision Tree")
-    X_tr, X_te, y_tr, y_te = train_test_split(X, np.where(y==0, 1, 0), test_size=0.2, random_state=42)
-    clf = DecisionTreeClassifier(max_depth=5).fit(X_tr, y_tr)
-    st.success(f"Précision : {accuracy_score(y_te, clf.predict(X_te))*100:.2f}%")
+# Nettoyage des valeurs manquantes (Outliers brut / Lignes vides)
+df_clean = df_raw[['Event ID', 'Log', 'Criticality']].dropna().copy()
 
-elif choix == "2. KNN":
-    st.title("👥 KNN Classifier")
-    X_tr, X_te, y_tr, y_te = train_test_split(X, np.where(y==0, 1, 0), test_size=0.2, random_state=42)
-    clf = KNeighborsClassifier(n_neighbors=3).fit(X_tr, y_tr)
-    st.success(f"Précision : {accuracy_score(y_te, clf.predict(X_te))*100:.2f}%")
+# Création de la cible (1 = Critique/Anomalie, 0 = Normal)
+df_clean['IsSuspect'] = df_clean['Criticality'].apply(
+    lambda x: 1 if str(x).strip().lower() in ['high', 'critical'] else 0
+)
 
-elif choix == "3. LDA":
-    st.title("📊 LDA Projection")
-    mask = (y == 0) | (y == 1)
-    clf = LinearDiscriminantAnalysis().fit(X[mask], y[mask])
-    st.success(f"Modèle LDA entraîné avec succès sur 0 et 1. Score : {clf.score(X[mask], y[mask])*100:.2f}%")
+# Équilibrage / Data Augmentation simple (SMOTE simulation / Oversampling)
+df_normals = df_clean[df_clean['IsSuspect'] == 0]
+df_attacks = df_clean[df_clean['IsSuspect'] == 1]
 
-elif choix == "4. PCA":
-    st.title("📉 PCA Compression")
-    pca = PCA(n_components=2).fit_transform(X)
-    fig, ax = plt.subplots()
-    ax.scatter(pca[:, 0], pca[:, 1], c=y, cmap="tab10", s=10)
-    st.pyplot(fig)
+# Duplication controlée des attaques pour équilibrer le Dataset (Augmentation)
+if len(df_attacks) > 0:
+    df_attacks_augmented = df_attacks.sample(len(df_normals), replace=True, random_state=42)
+    df_balanced = pd.concat([df_normals, df_attacks_augmented], ignore_index=True)
+else:
+    df_balanced = df_clean.copy()
 
-elif choix == "5. QDA":
-    st.title("📈 QDA Classification")
-    mask = (y == 0) | (y == 1)
-    qda = QuadraticDiscriminantAnalysis().fit(X[mask], y[mask])
-    st.success(f"Score QDA : {qda.score(X[mask], y[mask])*100:.2f}%")
+st.write(f"**Taille initiale :** {len(df_clean)} lignes | **Taille après augmentation/équilibrage :** {len(df_balanced)} lignes")
+st.dataframe(df_balanced.head(5))
 
-elif choix == "6. Régression Logistique":
-    st.title("📉 Régression Logistique")
-    X_tr, X_te, y_tr, y_te = train_test_split(X, np.where(y==0, 1, 0), test_size=0.2, random_state=42)
-    clf = LogisticRegression(max_iter=200).fit(X_tr, y_tr)
-    st.success(f"Précision : {accuracy_score(y_te, clf.predict(X_te))*100:.2f}%")
+# ==========================================
+# 2. FEATURE SELECTION & CORRELATION
+# ==========================================
+st.header("2. Feature Selection & Analyse des Corrélation")
 
-elif choix == "7. SVM (One-Class)":
-    st.title("🎯 One-Class SVM (Anomalies)")
-    model = OneClassSVM(nu=0.1).fit(X[y == 0])
-    st.success("Modèle One-Class SVM entraîné uniquement sur le chiffre 0 !")
-    pred = model.predict([X[0]])
-    st.write(f"Test sur un chiffre 0 (1 = Normal, -1 = Anomalie) : {pred[0]}")
+X = df_balanced[['Event ID', 'Log']]
+y = df_balanced['IsSuspect']
 
-elif choix == "8. t-SNE":
-    st.title("🗺️ t-SNE Embedding")
-    embedding = TSNE(n_components=2, random_state=42).fit_transform(X[:1000])
-    fig, ax = plt.subplots()
-    ax.scatter(embedding[:, 0], embedding[:, 1], c=y[:1000], cmap="tab10", s=10)
-    st.pyplot(fig)
+# Encodage One-Hot des variables catégorielles
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('cat', OneHotEncoder(sparse_output=False, handle_unknown='ignore'), ['Event ID', 'Log'])
+    ]
+)
+X_processed = preprocessor.fit_transform(X)
 
-elif choix == "9. UMAP":
-    st.title("🌐 UMAP Embedding")
-    reducer = umap.UMAP(n_components=2, random_state=42)
-    embedding = reducer.fit_transform(X[:1000])
-    fig, ax = plt.subplots()
-    ax.scatter(embedding[:, 0], embedding[:, 1], c=y[:1000], cmap="tab10", s=10)
-    st.pyplot(fig)
+# Affichage de la matrice de corrélation
+st.subheader("Matrice de Corrélation des Features")
+df_corr = pd.DataFrame(X_processed).corr().abs()
+fig_corr, ax_corr = plt.subplots(figsize=(6, 4))
+sns.heatmap(df_corr.iloc[:10, :10], cmap='Blues', ax=ax_corr) # Aperçu 10x10
+st.pyplot(fig_corr)
+
+# ==========================================
+# 3. FEATURE EXTRACTION (UMAP)
+# ==========================================
+st.header("3. Feature Extraction via UMAP")
+
+with st.spinner("Calcul de la carte UMAP en cours..."):
+    reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, random_state=42)
+    X_umap = reducer.fit_transform(X_processed)
+
+# Visualisation UMAP
+fig_umap, ax_umap = plt.subplots(figsize=(8, 4))
+sns.scatterplot(
+    x=X_umap[:, 0], y=X_umap[:, 1], 
+    hue=y, palette={0: '#2ecc71', 1: '#e74c3c'},
+    style=y, markers={0: 'o', 1: 'X'}, s=70, ax=ax_umap
+)
+ax_umap.set_title("Espace Réduit UMAP 2D")
+ax_umap.grid(True, linestyle='--', alpha=0.5)
+st.pyplot(fig_umap)
+
+# ==========================================
+# 4. MODEL SELECTION & TRAINING (UMAP SEUL)
+# ==========================================
+st.header("4. Model Selection & Training (UMAP Seul par Distance)")
+
+# Entraînement : Calcul du centroïde (Centre) des données normales sur UMAP
+center = np.mean(X_umap[y == 0], axis=0)
+
+# Distance de chaque point par rapport au centre normal
+distances = np.linalg.norm(X_umap - center, axis=1)
+
+# Réglage de l'hyperparamètre (Seuil de tolérance de distance)
+seuil_percentile = st.slider("Hyperparamètre : Seuil d'anomalie (Percentile Distance)", 50, 99, 85)
+seuil = np.percentile(distances, seuil_percentile)
+
+# Prédiction finale du modèle UMAP
+y_pred = (distances > seuil).astype(int)
+
+# ==========================================
+# 5. METRIQUES & EVALUATION COMPLETE
+# ==========================================
+st.header("5. Métriques & Généralisation")
+
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("Accuracy", f"{accuracy_score(y, y_pred)*100:.1f}%")
+col2.metric("Precision", f"{precision_score(y, y_pred, zero_division=0)*100:.1f}%")
+col3.metric("Recall", f"{recall_score(y, y_pred, zero_division=0)*100:.1f}%")
+col4.metric("F1-Score", f"{f1_score(y, y_pred, zero_division=0)*100:.1f}%")
+try:
+    auc = roc_auc_score(y, distances)
+    col5.metric("ROC AUC", f"{auc*100:.1f}%")
+except:
+    col5.metric("ROC AUC", "N/A")
+
+st.subheader("Matrice de Confusion")
+cm = confusion_matrix(y, y_pred)
+fig_cm, ax_cm = plt.subplots(figsize=(4, 2.5))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+            xticklabels=['Pred Normal', 'Pred Attaque'], 
+            yticklabels=['Vrai Normal', 'Vrai Attaque'], ax=ax_cm)
+st.pyplot(fig_cm)
