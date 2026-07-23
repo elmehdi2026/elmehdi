@@ -33,11 +33,23 @@ def load_data():
 with st.spinner("Téléchargement du Dataset en ligne..."):
     df_raw = load_data()
 
-# Affichage des colonnes pour le debug si besoin
-# st.write(df_raw.columns)
+# Affichage des colonnes disponibles pour le debug
+st.write("Colonnes détectées dans le CSV :", list(df_raw.columns))
 
-# Nettoyage des valeurs manquantes (Outliers brut / Lignes vides)
-df_clean = df_raw[['Event ID', 'Log', 'Criticality']].dropna().copy()
+# Adaptation dynamique ou sécurisée des noms de colonnes selon le dataset brut
+# On vérifie les colonnes présentes et on renomme ou sélectionne en conséquence
+possible_event_cols = [c for c in df_raw.columns if 'event' in c.lower() or 'id' in c.lower()]
+possible_log_cols = [c for c in df_raw.columns if 'log' in c.lower() or 'description' in c.lower() or 'text' in c.lower()]
+possible_crit_cols = [c for c in df_raw.columns if 'critical' in c.lower() or 'severity' in c.lower() or 'level' in c.lower()]
+
+# Utilisation des colonnes explicites ou fallback sur les premières disponibles
+event_col = 'Event ID' if 'Event ID' in df_raw.columns else (possible_event_cols[0] if possible_event_cols else df_raw.columns[0])
+log_col = 'Log' if 'Log' in df_raw.columns else (possible_log_cols[0] if possible_log_cols else df_raw.columns[1])
+crit_col = 'Criticality' if 'Criticality' in df_raw.columns else (possible_crit_cols[0] if possible_crit_cols else df_raw.columns[2])
+
+# Nettoyage des valeurs manquantes avec les colonnes identifiées
+df_clean = df_raw[[event_col, log_col, crit_col]].dropna().copy()
+df_clean.columns = ['Event ID', 'Log', 'Criticality'] # Uniformisation
 
 # Création de la cible (1 = Critique/Anomalie, 0 = Normal)
 df_clean['IsSuspect'] = df_clean['Criticality'].apply(
