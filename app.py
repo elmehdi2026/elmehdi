@@ -33,6 +33,9 @@ def load_data():
 with st.spinner("Téléchargement du Dataset en ligne..."):
     df_raw = load_data()
 
+# Affichage des colonnes pour le debug si besoin
+# st.write(df_raw.columns)
+
 # Nettoyage des valeurs manquantes (Outliers brut / Lignes vides)
 df_clean = df_raw[['Event ID', 'Log', 'Criticality']].dropna().copy()
 
